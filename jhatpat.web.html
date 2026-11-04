@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JhatPat – Groceries in 10 minutes</title>
+<style>
+:root{--ink:#1d2b2a;--gold:#ffb703;--leaf:#1f8a63;--paper:#fffaf0;--line:#eadfc7}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--paper);color:var(--ink)}
+.top{display:flex;align-items:center;gap:16px;padding:12px 24px;background:var(--gold);position:sticky;top:0;z-index:5}
+.brand{font-size:1.6rem;font-weight:800}
+.brand span{color:var(--leaf)}
+.eta{flex:1}
+.cart-btn{background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 18px;font-weight:600;cursor:pointer}
+.cart-btn span{background:var(--gold);color:var(--ink);border-radius:999px;padding:2px 8px;margin-left:6px}
+main{max-width:1000px;margin:auto;padding:0 20px 60px}
+.hero{padding:32px 0 12px}
+.hero h1{font-size:clamp(1.8rem,5vw,3rem);margin:0 0 16px;line-height:1.1}
+#search{width:100%;padding:14px 18px;border:2px solid var(--line);border-radius:12px;font-size:1rem}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:12px 0}
+.cat{white-space:nowrap;border:2px solid var(--line);background:#fff;border-radius:999px;padding:8px 16px;cursor:pointer;font-weight:600}
+.cat.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column}
+.emoji{font-size:3.2rem;text-align:center;background:var(--paper);border-radius:10px;padding:12px 0}
+.card h3{font-size:1rem;margin:10px 0 2px}
+.pack{color:#6b7a77;font-size:.85rem}
+.row{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:12px}
+.price{font-weight:700}
+.add{border:2px solid var(--leaf);color:var(--leaf);background:#fff;border-radius:8px;padding:6px 16px;font-weight:700;cursor:pointer}
+.qty{display:flex;align-items:center;gap:8px;background:var(--leaf);color:#fff;border-radius:8px;padding:2px 6px}
+.qty button{background:none;border:0;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.empty{grid-column:1/-1;text-align:center;color:#6b7a77;padding:40px}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(400px,100%);background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .25s;padding:20px;overflow-y:auto;z-index:10}
+.drawer.open{transform:none}
+.drawer-head{display:flex;justify-content:space-between;align-items:center}
+.drawer-head button{border:0;background:none;font-weight:700;cursor:pointer;color:var(--leaf)}
+.line{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.bill div{display:flex;justify-content:space-between;padding:4px 0}
+.bill .total{font-weight:800;font-size:1.1rem;border-top:2px dashed var(--line);margin-top:6px;padding-top:8px}
+.checkout input{width:100%;padding:12px;margin:8px 0;border:2px solid var(--line);border-radius:10px;font-size:1rem}
+.primary{width:100%;background:var(--leaf);color:#fff;border:0;border-radius:10px;padding:14px;font-size:1rem;font-weight:700;cursor:pointer}
+.msg{font-weight:600}.msg.err{color:#c0392b}.msg.ok{color:var(--leaf)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Jhat<span>Pat</span></div>
+  <div class="eta">Delivery in <b>10 min</b></div>
+  <button id="cartBtn" class="cart-btn">Cart <span id="cartCount">0</span></button>
+</header>
+<main>
+  <section class="hero">
+    <h1>Jhat se order, pat se delivery.</h1>
+    <input id="search" type="search" placeholder="Search milk, bread, chips...">
+  </section>
+  <nav id="cats" class="cats"></nav>
+  <section id="grid" class="grid"></section>
+</main>
+<aside id="drawer" class="drawer">
+  <div class="drawer-head"><h2>Your cart</h2><button id="closeBtn">Close</button></div>
+  <div id="cartItems"></div>
+  <div id="bill"></div>
+  <div class="checkout">
+    <input id="name" placeholder="Your name">
+    <input id="address" placeholder="Delivery address">
+    <button id="placeBtn" class="primary">Place order</button>
+    <p id="msg" class="msg"></p>
+  </div>
+</aside>
+
+<script>
+// Naye items yahan add karo: [id, naam, emoji, category, price, pack]
+const ITEMS = [
+  [1,"Amul Taaza Milk","🥛","Dairy",27,"500 ml"],
+  [2,"Farm Eggs","🥚","Dairy",78,"12 pcs"],
+  [3,"Paneer","🧀","Dairy",95,"200 g"],
+  [4,"Bananas","🍌","Fruits & Veg",45,"1 dozen"],
+  [5,"Tomatoes","🍅","Fruits & Veg",30,"500 g"],
+  [6,"Onions","🧅","Fruits & Veg",35,"1 kg"],
+  [7,"Apples","🍎","Fruits & Veg",160,"1 kg"],
+  [8,"Brown Bread","🍞","Bakery",45,"400 g"],
+  [9,"Butter Croissant","🥐","Bakery",60,"2 pcs"],
+  [10,"Potato Chips","🍟","Snacks",20,"52 g"],
+  [11,"Instant Noodles","🍜","Snacks",14,"70 g"],
+  [12,"Chocolate Bar","🍫","Snacks",50,"40 g"],
+  [13,"Cola","🥤","Drinks",40,"750 ml"],
+  [14,"Orange Juice","🧃","Drinks",99,"1 L"],
+  [15,"Masala Chai Patti","🍵","Drinks",120,"250 g"],
+  [16,"Basmati Rice","🍚","Staples",140,"1 kg"]
+];
+const catalog = ITEMS.map(([id,name,emoji,category,price,pack]) => ({id,name,emoji,category,price,pack}));
+let cart = {}, category = "";
+const $ = id => document.getElementById(id);
+const rupee = n => "₹" + n;
+
+function renderCats() {
+  const cats = ["All", ...new Set(catalog.map(p => p.category))];
+  $("cats").innerHTML = cats.map(c => `<button class="cat ${c==="All"?"on":""}" data-c="${c}">${c}</button>`).join("");
+  $("cats").onclick = e => {
+    if (!e.target.dataset.c) return;
+    category = e.target.dataset.c === "All" ? "" : e.target.dataset.c;
+    document.querySelectorAll(".cat").forEach(b => b.classList.toggle("on", b === e.target));
+    renderGrid();
+  };
+}
+
+function renderGrid() {
+  const q = $("search").value.toLowerCase().trim();
+  const list = catalog.filter(p => p.name.toLowerCase().includes(q) && (!category || p.category === category));
+  if (!list.length) { $("grid").innerHTML = `<p class="empty">No items found. Try another search.</p>`; return; }
+  $("grid").innerHTML = list.map(p => {
+    const n = cart[p.id] || 0;
+    const ctl = n
+      ? `<div class="qty"><button onclick="change(${p.id},-1)">−</button>${n}<button onclick="change(${p.id},1)">+</button></div>`
+      : `<button class="add" onclick="change(${p.id},1)">Add</button>`;
+    return `<article class="card"><div class="emoji">${p.emoji}</div><h3>${p.name}</h3>
+      <div class="pack">${p.pack}</div><div class="row"><span class="price">${rupee(p.price)}</span>${ctl}</div></article>`;
+  }).join("");
+}
+
+function change(id, d) {
+  cart[id] = Math.max(0, (cart[id] || 0) + d);
+  if (!cart[id]) delete cart[id];
+  renderGrid(); renderCart();
+}
+
+function renderCart() {
+  const ids = Object.keys(cart);
+  $("cartCount").textContent = ids.reduce((s, i) => s + cart[i], 0);
+  if (!ids.length) { $("cartItems").innerHTML = `<p class="empty">Your cart is empty. Add something tasty.</p>`; $("bill").innerHTML = ""; return; }
+  let sub = 0;
+  $("cartItems").innerHTML = ids.map(i => {
+    const p = catalog.find(x => x.id == i);
+    sub += p.price * cart[i];
+    return `<div class="line"><span>${p.emoji} ${p.name}<br><small>${rupee(p.price)} × ${cart[i]}</small></span>
+      <div class="qty"><button onclick="change(${p.id},-1)">−</button>${cart[i]}<button onclick="change(${p.id},1)">+</button></div></div>`;
+  }).join("");
+  const del = sub >= 199 ? 0 : 25;
+  $("bill").innerHTML = `<div class="bill"><div><span>Items</span><span>${rupee(sub)}</span></div>
+    <div><span>Delivery</span><span>${del ? rupee(del) : "Free"}</span></div>
+    <div class="total"><span>Total</span><span>${rupee(sub + del)}</span></div></div>
+    ${del ? `<small>Add ${rupee(199 - sub)} more for free delivery</small>` : ""}`;
+}
+
+function placeOrder() {
+  const msg = $("msg"), name = $("name").value.trim(), address = $("address").value.trim();
+  if (!Object.keys(cart).length || !name || !address) {
+    msg.className = "msg err";
+    msg.textContent = "Add items, your name and an address to place the order.";
+    return;
+  }
+  const total = Object.keys(cart).reduce((s, i) => s + catalog.find(x => x.id == i).price * cart[i], 0);
+  const orderTotal = total + (total >= 199 ? 0 : 25);
+  const id = "JP" + Math.floor(10000 + Math.random() * 90000);
+  const orders = JSON.parse(localStorage.getItem("orders") || "[]");
+  orders.push({ id, name, address, cart, total: orderTotal });
+  localStorage.setItem("orders", JSON.stringify(orders));
+  msg.className = "msg ok";
+  msg.textContent = `Order ${id} placed! Total ${rupee(orderTotal)}. Arriving in about 10 minutes.`;
+  cart = {}; renderGrid(); renderCart();
+}
+
+$("cartBtn").onclick = () => $("drawer").classList.add("open");
+$("closeBtn").onclick = () => $("drawer").classList.remove("open");
+$("placeBtn").onclick = placeOrder;
+$("search").oninput = renderGrid;
+renderCats(); renderGrid(); renderCart();
+</script>
+</body>
+</html>
